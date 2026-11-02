@@ -554,13 +554,16 @@ type Program struct {
 	ignoreSignals uint32
 
 	// ticker is the ticker that will be used to write to the renderer.
-	ticker *time.Ticker
+	ticker rendererTicker
 
 	// once is used to stop the renderer.
 	once sync.Once
 
 	// rendererDone is used to stop the renderer.
 	rendererDone chan struct{}
+
+	// rendererStopped is closed after the renderer goroutine stops its ticker.
+	rendererStopped chan struct{}
 
 	// Initial window size. Mainly used for testing.
 	width, height int
@@ -1437,11 +1440,22 @@ func (p *Program) Printf(template string, args ...any) {
 	}
 }
 
+// rendererTicker permits deterministic control of renderer shutdown in tests.
+type rendererTicker interface {
+	ticks() <-chan time.Time
+	Reset(time.Duration)
+	Stop()
+}
+
+type timeRendererTicker struct{ *time.Ticker }
+
+func (t timeRendererTicker) ticks() <-chan time.Time { return t.C }
+
 // startRenderer starts the renderer.
 func (p *Program) startRenderer() {
 	framerate := time.Second / time.Duration(p.fps)
 	if p.ticker == nil {
-		p.ticker = time.NewTicker(framerate)
+		p.ticker = timeRendererTicker{time.NewTicker(framerate)}
 	} else {
 		// If the ticker already exists, it has been stopped and we need to
 		// reset it.
@@ -1454,14 +1468,17 @@ func (p *Program) startRenderer() {
 
 	// Start the renderer.
 	p.renderer.start()
+	stopped := make(chan struct{})
+	p.rendererStopped = stopped
 	go func() {
+		defer close(stopped)
 		for {
 			select {
 			case <-p.rendererDone:
 				p.ticker.Stop()
 				return
 
-			case <-p.ticker.C:
+			case <-p.ticker.ticks():
 				_ = p.flush()
 				_ = p.renderer.flush(false)
 			}
@@ -1475,7 +1492,11 @@ func (p *Program) startRenderer() {
 func (p *Program) stopRenderer(kill bool) {
 	// Stop the renderer before acquiring the mutex to avoid a deadlock.
 	p.once.Do(func() {
+		if p.rendererStopped == nil {
+			return
+		}
 		p.rendererDone <- struct{}{}
+		<-p.rendererStopped
 	})
 
 	if !kill {
