@@ -3,18 +3,22 @@ on: [push, pull_request]
 
 jobs:
   build:
-    uses: charmbracelet/meta/.github/workflows/build.yml@main
+    uses: ./.github/workflows/upstream-build.yml
+    with:
+      linux-runner: ${{ vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest' }}
 
   build-go-mod:
-    uses: charmbracelet/meta/.github/workflows/build.yml@main
+    uses: ./.github/workflows/upstream-build.yml
     with:
+      linux-runner: ${{ vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest' }}
       go-version: ""
       go-version-file: ./go.mod
 
   build-examples:
     if: github.actor != 'dependabot[bot]'
-    uses: charmbracelet/meta/.github/workflows/build.yml@main
+    uses: ./.github/workflows/upstream-build.yml
     with:
+      linux-runner: ${{ vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest' }}
       go-version: ""
       go-version-file: ./examples/go.mod
       working-directory: ./examples
