@@ -1,7 +1,10 @@
 name: lint
 on:
   push:
+    branches: [main]
+    tags: ["**"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
