@@ -15,7 +15,7 @@ jobs:
   lint:
     uses: charmbracelet/meta/.github/workflows/lint.yml@main
     with:
-      os: ${{ vars.CI_PROVIDER == 'namespace' && '["nscloud-ubuntu-26.04-amd64-4x16", "macos-latest", "windows-latest"]' || '["ubuntu-latest", "macos-latest", "windows-latest"]' }}
+      os: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && '["l3-ubuntu-26.04", "macos-latest", "windows-latest"]' || (vars.CI_PROVIDER == 'namespace' && '["nscloud-ubuntu-26.04-amd64-4x16", "macos-latest", "windows-latest"]' || '["ubuntu-latest", "macos-latest", "windows-latest"]') }}
       golangci_path: .golangci.yml
       golangci_version: v2.9
       timeout: 10m

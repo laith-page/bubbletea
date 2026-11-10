@@ -12,7 +12,7 @@ jobs:
       matrix:
         go-version: [^1]
         os: [ubuntu-latest]
-    runs-on: ${{ vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
     env:
       GO111MODULE: "on"
     steps:

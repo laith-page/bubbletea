@@ -10,12 +10,12 @@ jobs:
   build:
     uses: ./.github/workflows/upstream-build.yml
     with:
-      linux-runner: ${{ vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest' }}
+      linux-runner: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
 
   build-go-mod:
     uses: ./.github/workflows/upstream-build.yml
     with:
-      linux-runner: ${{ vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest' }}
+      linux-runner: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
       go-version: ""
       go-version-file: ./go.mod
 
@@ -23,7 +23,7 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/upstream-build.yml
     with:
-      linux-runner: ${{ vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest' }}
+      linux-runner: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
       go-version: ""
       go-version-file: ./examples/go.mod
       working-directory: ./examples
