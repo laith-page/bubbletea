@@ -1,0 +1,42 @@
+# Vendored from charmbracelet/meta/.github/workflows/lint-sync.yml at 2031836b979f4138001f6b31cee3fc2cf3dc9c28.
+# License: .github/LICENSE.charmbracelet-meta. Runner fixed to our L3 fleet; meta inputs pinned.
+name: lint-sync
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: l3-ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: ${{ github.repository }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: charmbracelet/meta
+          ref: 2031836b979f4138001f6b31cee3fc2cf3dc9c28
+          path: charmbracelet/meta
+      - run: |
+          cp charmbracelet/meta/golangci.yml ${{ github.repository }}/.golangci.yml
+          rm -rf ${{ github.repository }}/.golangci-soft.yml
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          commit-message: "ci: sync golangci-lint config"
+          title: "ci: sync golangci-lint config"
+          body: |
+            This is an automated pull request to sync the golangci-lint config with the meta repository.
+          branch: "ci/sync-lint-config"
+          delete-branch: true
+          path: "${{ github.repository }}"
+      - name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
+

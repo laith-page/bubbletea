@@ -5,25 +5,54 @@ on:
     tags: ["**"]
   pull_request:
   workflow_dispatch:
-
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   build:
     uses: ./.github/workflows/upstream-build.yml
-    with:
-      linux-runner: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
-
   build-go-mod:
     uses: ./.github/workflows/upstream-build.yml
     with:
-      linux-runner: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
       go-version: ""
       go-version-file: ./go.mod
-
   build-examples:
-    if: github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/upstream-build.yml
     with:
-      linux-runner: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
       go-version: ""
       go-version-file: ./examples/go.mod
       working-directory: ./examples
+  build-tutorials:
+    uses: ./.github/workflows/upstream-build.yml
+    with:
+      go-version: ""
+      go-version-file: ./tutorials/go.mod
+      working-directory: ./tutorials
+  lint:
+    uses: ./.github/workflows/lint.yml
+  coverage:
+    uses: ./.github/workflows/coverage.yml
+    secrets: inherit
+  check:
+    name: Check
+    if: ${{ always() }}
+    needs: [build, build-go-mod, build-examples, build-tutorials, lint, coverage]
+    runs-on: l3-ubuntu-26.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every check to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = json.loads(os.environ['RESULTS'])
+          failures = {name: job['result'] for name, job in results.items() if job['result'] != 'success'}
+          if failures:
+              print(failures)
+              sys.exit(1)
+          PY

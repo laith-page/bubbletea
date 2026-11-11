@@ -1,0 +1,63 @@
+# Vendored from charmbracelet/meta/.github/workflows/dependabot-sync.yml at 2031836b979f4138001f6b31cee3fc2cf3dc9c28.
+# License: .github/LICENSE.charmbracelet-meta. Runner fixed to our L3 fleet; meta inputs pinned.
+name: dependabot-sync
+on:
+  workflow_call:
+    inputs:
+      repo_name:
+        description: The repository name, without the "charmbracelet/" prefix.
+        required: true
+        type: string
+    secrets:
+      gh_token:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: l3-ubuntu-26.04
+    if: inputs.repo_name != 'hyper'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository_owner }}/${{ inputs.repo_name }}
+          path: ${{ github.repository_owner }}/${{ inputs.repo_name }}
+          token: ${{ secrets.gh_token }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: charmbracelet/meta
+          ref: 2031836b979f4138001f6b31cee3fc2cf3dc9c28
+          path: charmbracelet/meta
+          token: ${{ secrets.gh_token }}
+
+      - run: |
+          cp "charmbracelet/meta/dependabot/dependabot.yml" "${{ github.repository_owner }}/${{ inputs.repo_name }}/.github/dependabot.yml"
+          DEPENDABOT_FILE="charmbracelet/meta/dependabot/dependabot-${{ inputs.repo_name }}.yml"
+          if [ -f "$DEPENDABOT_FILE" ]; then
+            cat "$DEPENDABOT_FILE" >> "${{ github.repository_owner }}/${{ inputs.repo_name }}/.github/dependabot.yml"
+          fi
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          commit-message: "ci: sync dependabot config"
+          author: Charm <124303983+charmcli@users.noreply.github.com>
+          title: "ci: sync dependabot config"
+          body: |
+            This is an automated pull request to sync the Dependabot config with the meta repository.
+          branch: "ci/sync-dependabot-config"
+          delete-branch: true
+          path: "${{ github.repository_owner }}/${{ inputs.repo_name }}"
+          token: ${{ secrets.gh_token }}
+
+      - name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
+

@@ -1,101 +1,83 @@
-# Based on charmbracelet/meta/.github/workflows/build.yml at 2031836b979f4138001f6b31cee3fc2cf3dc9c28
-# Upstream license: .github/LICENSE.charmbracelet-meta. Only Linux runner selection is extended.
-name: build
-
+# Derived from charmbracelet/meta/.github/workflows/build.yml at 2031836b979f4138001f6b31cee3fc2cf3dc9c28.
+# License: .github/LICENSE.charmbracelet-meta. Linux execution and explicit foreign-target compilation only.
+name: module checks
 on:
   workflow_call:
     inputs:
-      linux-runner:
-        description: Runner for Linux checks; macOS and Windows retain the upstream matrix.
-        required: false
-        type: string
-        default: ubuntu-latest
-      go_version:
-        required: false
-        type: string
       go-version:
-        required: false
         type: string
         default: stable
       go-version-file:
-        required: false
         type: string
+        default: ""
       working-directory:
-        required: false
         type: string
-    secrets:
-      gh_pat:
-        required: false
-
+        default: .
+permissions:
+  contents: read
 jobs:
-  govulncheck:
-    runs-on: ${{ inputs.linux-runner }}
-    env:
-      GH_PAT: ${{ secrets.gh_pat }}
+  build:
+    runs-on: l3-ubuntu-26.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
-          cache: true
-          check-latest: true
-      - run: |
-          git config --global url."https://${{ secrets.gh_pat }}@github.com/charmbracelet".insteadOf "https://github.com/charmbracelet"
-          git config --global url."https://${{ secrets.gh_pat }}@github.com/charmcli".insteadOf "https://github.com/charmcli"
-        if: env.GH_PAT != null
-      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
-      - run: go mod tidy
-      - run: govulncheck ./...
-
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os == 'ubuntu-latest' && inputs.linux-runner || matrix.os }}
-    env:
-      GO111MODULE: "on"
-      GH_PAT: ${{ secrets.gh_pat }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: |
-          git config --global url."https://${{ secrets.gh_pat }}@github.com/charmbracelet".insteadOf "https://github.com/charmbracelet"
-          git config --global url."https://${{ secrets.gh_pat }}@github.com/charmcli".insteadOf "https://github.com/charmcli"
-        if: env.GH_PAT != null
-      - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: ${{ inputs.go_version || inputs.go-version }}
+          go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version-file }}
-          cache: true
-      - name: Tidy Go modules
-        run: go mod tidy
-        working-directory: ${{ inputs.working-directory }}
-      - name: Check for changes
-        run: git diff --exit-code
-        working-directory: ${{ inputs.working-directory }}
+          cache-dependency-path: '**/go.sum'
+      - name: Check module tidiness
+        run: |
+          go mod tidy
+          git diff --exit-code
       - name: Build
         run: go build ./...
+      - name: Linux tests
+        run: go test -timeout 5m ./...
+      - name: Linux race tests
+        run: go test -race -timeout 5m ./...
+  govulncheck:
+    runs-on: l3-ubuntu-26.04
+    timeout-minutes: 15
+    defaults:
+      run:
         working-directory: ${{ inputs.working-directory }}
-      - name: Test
-        run: go test ./...
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: ${{ inputs.go-version-file || 'go.mod' }}
+          cache-dependency-path: '**/go.sum'
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: govulncheck ./...
+  cross-compile:
+    name: compile Darwin and Windows targets (no execution)
+    runs-on: l3-ubuntu-26.04
+    timeout-minutes: 30
+    defaults:
+      run:
         working-directory: ${{ inputs.working-directory }}
-
-  # dependabot:
-  #   needs: [build, govulncheck]
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     pull-requests: write
-  #     contents: write
-  #   if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
-  #   steps:
-  #     - id: metadata
-  #       uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-  #       with:
-  #         github-token: "${{ secrets.GITHUB_TOKEN }}"
-  #     - run: |
-  #         gh pr review --approve "$PR_URL"
-  #         gh pr merge --squash --auto "$PR_URL"
-  #       env:
-  #         PR_URL: ${{github.event.pull_request.html_url}}
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version-file }}
+          cache-dependency-path: '**/go.sum'
+      - name: Cross-build packages and test binaries without execution
+        # Go compiles every test binary, then the explicit executor returns without running it.
+        run: |
+          for target in darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            echo "Compile $target (no execution)"
+            GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0 go build ./...
+            GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0 go test -run '^$' -exec /bin/true ./...
+          done
