@@ -18,7 +18,7 @@ jobs:
   tidy:
     permissions:
       contents: write
-    runs-on: ${{ (vars.CI_PROVIDER == 'l3' || vars.CI_PROVIDER == 'runs') && 'l3-ubuntu-26.04' || (vars.CI_PROVIDER == 'namespace' && 'nscloud-ubuntu-26.04-amd64-4x16' || 'ubuntu-latest') }}
+    runs-on: l3-ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6

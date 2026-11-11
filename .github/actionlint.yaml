@@ -1,3 +1,3 @@
 self-hosted-runner:
   labels:
-    - nscloud-ubuntu-26.04-amd64-4x16
+    - l3-ubuntu-26.04
